@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Portafolio de Aiiko - Modelos SDXL y LoRA exclusivos para arte anime y fantasía.">
+    <title>Aiiko Art - Portfolio Profesional</title>
+
+    <!-- FAVICON (Sakura) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d946ef'%3E%3Cpath d='M12 2.5c1.1 2.5 1.1 2.5 1.7 4.5 1.9-1.3 4.4-1.3 5.7 0 1.3 1.3 1.3 3.8 0 5.7-2 0.6-2 0.6-4.5 1.7 1.3 1.9 1.3 4.4 0 5.7-1.3 1.3-3.8 1.3-5.7 0-0.6-2-0.6-2-1.7-4.5-1.9 1.3-4.4 1.3-5.7 0-1.3-1.3-1.3-3.8 0-5.7 2-0.6 2-0.6 4.5-1.7-1.3-1.9-1.3-4.4 0-5.7 1.3-1.3 3.8-1.3 5.7 0 0.6 2 0.6 2 1.7 4.5z'/%3E%3C/svg%3E">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Librería 'pako' para descomprimir datos zTXt/iTXt (Necesaria para el Lector de Metadata) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    
+    <!-- Iconos Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Configuración de Colores -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fuchsia: {
+                            400: '#e879f9',
+                            500: '#d946ef',
+                            600: '#c026d3',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Consolas', 'Monaco', 'monospace'], // Para los metadatos
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0A0510;
+            color: #faf5ff;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes heartPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        .like-anim {
+            animation: heartPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0A0510; }
+        ::-webkit-scrollbar-thumb { background: #3b0764; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d946ef; }
+
+        /* Ocultar scrollbar pero permitir scroll */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Estilos específicos del Lector de Metadatos */
+        .model-link {
+            color: #e879f9; /* fuchsia-400 */
+            text-decoration: none;
+            border-bottom: 1px dotted #e879f9;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .model-link:hover {
+            color: #f0abfc; /* fuchsia-300 */
+            border-bottom: 1px solid #f0abfc;
+            background-color: rgba(217, 70, 239, 0.1);
+        }
+        .meta-drop-active {
+            border-color: #d946ef !important;
+            background-color: rgba(217, 70, 239, 0.05) !important;
+        }
+
+        /* Loader Simple */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; }
+
+        /* Estilos del Admin Panel */
+        .admin-controls {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Efecto Smooth para el Modal */
+        #details-modal { transition: opacity 0.3s ease, visibility 0.3s ease; }
+        #details-modal.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        #details-modal:not(.hidden) { opacity: 1; visibility: visible; pointer-events: auto; }
+    </style>
+</head>
+<body class="selection:bg-fuchsia-500/30 selection:text-fuchsia-200 flex flex-col min-h-screen">
+
+    <!-- Fondo Ambiental -->
+    <div class="fixed inset-0 z-0 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[120px] opacity-60"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-900/20 rounded-full blur-[120px] opacity-60"></div>
+        <div class="absolute top-[20%] right-[20%] w-[300px] h-[300px] bg-indigo-900/20 rounded-full blur-[100px] opacity-40 animate-pulse"></div>
+    </div>
+
+    <!-- ADMIN TOOLBAR -->
+    <div id="admin-toolbar" class="hidden fixed top-0 left-0 w-full z-50 bg-slate-900/95 border-b border-fuchsia-500/30 text-white p-4 shadow-2xl backdrop-blur-md">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-fuchsia-600 p-2 rounded-lg"><i data-lucide="settings" class="w-5 h-5"></i></div>
+                <div>
+                    <h3 class="font-bold text-sm">Modo Editor</h3>
+                    <p class="text-xs text-slate-400">Estás editando la web</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="openEditor()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Modelo
+                </button>
+                <button onclick="downloadUpdatedWeb()" class="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(217,70,239,0.3)]">
+                    <i data-lucide="save" class="w-4 h-4"></i> Guardar y Publicar
+                </button>
+                <button onclick="logoutAdmin()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold transition-colors">
+                    Salir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificación Flotante -->
+    <div id="notification" class="fixed bottom-8 right-8 z-[60] transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none">
+        <div class="bg-white/10 backdrop-blur-md border border-white/10 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+            <i data-lucide="sparkles" class="text-fuchsia-400 w-4 h-4"></i>
+            <span id="notification-text" class="text-sm font-medium">Notificación</span>
+        </div>
+    </div>
+
+    <!-- MODAL DE EDITOR (Admin) -->
+    <div id="editor-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeEditor()"></div>
+        <div class="relative bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i data-lucide="edit-3" class="w-5 h-5 text-fuchsia-500"></i> <span id="modal-title">Editar Modelo</span>
+            </h3>
+            <form onsubmit="saveModel(event)" class="space-y-4">
+                <input type="hidden" id="edit-id">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Título</label>
+                        <input type="text" id="edit-title" required class="w-full bg-slate-950 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-fuchsia-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Tipo</label>
+                        <select id="edit-type" class="w-full bg-slate-950 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-fuchsia-500 outline-none">
+                            <option value="LoRA">LoRA</option>
+                            <option value="Checkpoint">Checkpoint</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Tier</label>
+                    <select id="edit-tier" class="w-full bg-slate-950 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-fuchsia-500 outline-none">
+                        <option value="FREE">Gratis (FREE)</option>
+                        <option value="PAID">Pago (PAID)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">URLs Imágenes (Separadas por comas)</label>
+                    <textarea id="edit-images" required rows="3" placeholder="./images/mi_lora_01.jpg, https://imgur.com/..." class="w-full bg-slate-950 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-fuchsia-500 outline-none font-mono text-xs"></textarea>
+                    <p class="text-[10px] text-slate-500 mt-1">Usa rutas relativas (ej: <code>./images/foto1.jpg</code>) si alojas en GitHub, o URLs completas.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Etiquetas (separadas por coma)</label>
+                    <input type="text" id="edit-tags" placeholder="Anime, Fantasy, Dark" class="w-full bg-slate-950 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-fuchsia-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
+                    <textarea id="edit-desc" rows="5" class="w-full bg-slate-950 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-fuchsia-500 outline-none resize-none"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeEditor()" class="px-4 py-2 rounded-lg text-slate-400 hover:text-white text-sm">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-lg font-bold text-sm shadow-lg shadow-fuchsia-900/20">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE DETALLES (Vista Publica) -->
+    <div id="details-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center p-4">
+        <!-- Fondo oscuro -->
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" onclick="closeDetailsModal()"></div>
+        
+        <!-- Contenido Modal -->
+        <div class="relative bg-[#0F0A15] border border-white/10 rounded-3xl w-full max-w-5xl h-[90vh] shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            <!-- Botón Cerrar Móvil -->
+            <button onclick="closeDetailsModal()" class="absolute top-4 right-4 z-50 p-2 bg-black/50 text-white rounded-full md:hidden">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Columna Izquierda: Galería -->
+            <div class="w-full md:w-2/3 bg-black flex flex-col relative group">
+                <!-- Imagen Principal -->
+                <div class="flex-grow relative flex items-center justify-center overflow-hidden bg-[#050208]">
+                    <img id="detail-main-image" src="" class="max-w-full max-h-full object-contain" alt="Main View">
+                </div>
+                <!-- Miniaturas (Slider) -->
+                <div id="detail-thumbnails" class="h-24 bg-[#0A0510] border-t border-white/10 flex items-center gap-2 px-4 overflow-x-auto no-scrollbar snap-x">
+                    <!-- JS inyectará miniaturas aquí -->
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Info -->
+            <div class="w-full md:w-1/3 p-8 flex flex-col bg-[#0F0A15] overflow-y-auto border-l border-white/5 relative">
+                <!-- Botón Cerrar Desktop -->
+                <button onclick="closeDetailsModal()" class="absolute top-6 right-6 text-slate-400 hover:text-white hidden md:block transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+
+                <!-- Header -->
+                <div class="mb-6 mt-2">
+                    <div class="flex gap-2 mb-3" id="detail-badges">
+                        <!-- Badges inyectados -->
+                    </div>
+                    <h2 id="detail-title" class="text-3xl font-bold text-white leading-tight">Título del Modelo</h2>
+                </div>
+
+                <!-- Info Scrollable -->
+                <div class="flex-grow">
+                    <p id="detail-desc" class="text-slate-300 text-sm leading-relaxed whitespace-pre-line mb-6">
+                        Descripción completa aquí...
+                    </p>
+                    
+                    <div class="mb-6">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Etiquetas</h4>
+                        <div id="detail-tags" class="flex flex-wrap gap-2">
+                            <!-- Tags inyectados -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Botones -->
+                <div class="pt-6 border-t border-white/10 mt-auto space-y-3">
+                    <button onclick="showNotification('Descarga iniciada...')" class="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                        <i data-lucide="download" class="w-5 h-5"></i> Descargar Modelo
+                    </button>
+                    <div class="flex gap-3">
+                        <button onclick="showNotification('Copiado al portapapeles')" class="flex-1 py-3 bg-white/5 border border-white/10 text-white font-medium rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="share-2" class="w-4 h-4"></i> Compartir
+                        </button>
+                        <button id="detail-like-btn" class="flex-1 py-3 bg-white/5 border border-white/10 text-white font-medium rounded-xl hover:bg-pink-500/20 hover:border-pink-500/50 hover:text-pink-400 transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="heart" class="w-4 h-4"></i> Favorito
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav id="navbar" class="fixed top-0 w-full z-40 transition-all duration-500 py-8 bg-transparent">
+        <div class="container mx-auto px-6 max-w-6xl flex justify-between items-center">
+            
+            <!-- Logo Sakura Moderna -->
+            <div class="flex items-center gap-3 cursor-pointer group" onclick="switchTab('gallery')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-600 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:scale-105 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-white">
+                        <path d="M12 2C12 2 13 6 12 7C14.5 6 17.5 6 18.5 8C19.5 10 15.5 12 14.5 12C16.5 13 18.5 16 17 17.5C15.5 19 12.5 15.5 12 14.5C11.5 16.5 8.5 19 7 17.5C5.5 16 7.5 13 9.5 12C8.5 12 4.5 10.5 5.5 8.5C6.5 6.5 9.5 6.5 11.5 7.5C11 6 11.5 2 12 2Z" />
+                    </svg>
+                </div>
+                <span class="text-xl font-medium tracking-wide text-white">aiiko<span class="text-fuchsia-500">.</span></span>
+            </div>
+
+            <!-- Menú Escritorio -->
+            <div class="hidden md:flex items-center gap-8">
+                <button onclick="switchTab('gallery')" id="btn-gallery" class="text-sm font-medium transition-colors text-white relative group">
+                    Galería
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-fuchsia-500 transition-all group-hover:w-full"></span>
+                </button>
+                <button onclick="switchTab('metadata')" id="btn-metadata" class="text-sm font-medium transition-colors text-slate-400 hover:text-white relative group">
+                    Metadata
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-fuchsia-500 transition-all group-hover:w-full"></span>
+                </button>
+                <button onclick="switchTab('requests')" id="btn-requests" class="text-sm font-medium transition-colors text-slate-400 hover:text-white relative group">
+                    Pedidos
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-fuchsia-500 transition-all group-hover:w-full"></span>
+                </button>
+                <button onclick="switchTab('support')" id="btn-support" class="text-sm font-medium transition-colors text-slate-400 hover:text-white relative group">
+                    Apoyar
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-fuchsia-500 transition-all group-hover:w-full"></span>
+                </button>
+            </div>
+
+            <!-- Botón Discord -->
+            <a href="https://discord.gg/G3eKWBwmtb" target="_blank" onclick="showNotification('Abriendo Discord...')" class="px-5 py-2 rounded-full border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-all flex items-center gap-2 group">
+                <span>Discord</span>
+                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Header / Hero -->
+    <header id="hero-section" class="relative pt-40 pb-10 z-10 text-center container mx-auto px-6 fade-in-up transition-all duration-500">
+        <div class="inline-block mb-6">
+            <span class="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium tracking-wider uppercase flex items-center gap-2 mx-auto w-fit">
+                <i data-lucide="star" class="w-3 h-3 fill-current"></i> SDXL & LoRA Collection
+            </span>
+        </div>
+        
+        <h1 class="text-5xl md:text-7xl font-bold text-white leading-tight mb-6 tracking-tight">
+            Realidad <br/>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-purple-400 to-indigo-400">
+                Sintética.
+            </span>
+        </h1>
+        
+        <p class="text-lg text-slate-400 mb-10 max-w-xl mx-auto leading-relaxed font-light">
+            Explora estilos únicos creados con inteligencia artificial.
+            Minimalista. Etéreo. Único.
+        </p>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="container mx-auto px-6 pb-24 max-w-6xl z-10 relative flex-grow pt-10">
+        
+        <!-- VISTA GALERÍA -->
+        <div id="view-gallery" class="fade-in-up">
+            
+            <!-- Barra de Herramientas -->
+            <div class="flex flex-col md:flex-row justify-between items-end gap-6 mb-8 border-b border-white/5 pb-6">
+                <div class="flex flex-wrap gap-4 md:gap-6">
+                    <button onclick="filterModels('All')" class="filter-btn pb-2 text-sm font-medium transition-all relative text-white" data-type="All">
+                        Todos <span class="indicator absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-fuchsia-500 to-purple-500 rounded-full"></span>
+                    </button>
+                    <button onclick="filterModels('LoRA')" class="filter-btn pb-2 text-sm font-medium transition-all relative text-slate-500 hover:text-slate-300" data-type="LoRA">
+                        LoRA <span class="indicator absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-fuchsia-500 to-purple-500 rounded-full hidden"></span>
+                    </button>
+                    <button onclick="filterModels('Checkpoint')" class="filter-btn pb-2 text-sm font-medium transition-all relative text-slate-500 hover:text-slate-300" data-type="Checkpoint">
+                        Checkpoint <span class="indicator absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-fuchsia-500 to-purple-500 rounded-full hidden"></span>
+                    </button>
+                    <button onclick="filterModels('Favorites')" class="filter-btn pb-2 text-sm font-medium transition-all relative text-slate-500 hover:text-slate-300 flex items-center gap-1" data-type="Favorites">
+                        <i data-lucide="heart" class="w-3 h-3 fill-current"></i> Favoritos 
+                        <span class="indicator absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-fuchsia-500 to-purple-500 rounded-full hidden"></span>
+                    </button>
+                </div>
+
+                <div class="relative w-full md:w-64 group">
+                    <i data-lucide="search" class="absolute left-0 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-fuchsia-400 transition-colors w-4 h-4"></i>
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Buscar..."
+                        class="w-full bg-transparent border-b border-slate-700 focus:border-fuchsia-500 text-white pl-8 py-2 outline-none transition-all placeholder:text-slate-600"
+                        oninput="handleSearch(this.value)"
+                    />
+                </div>
+            </div>
+
+            <!-- Grid de Modelos -->
+            <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[400px]">
+                <!-- Los items se generan aquí dinámicamente -->
+            </div>
+            
+            <!-- Mensaje de no resultados -->
+            <div id="no-results" class="hidden py-24 text-center opacity-50">
+                <i data-lucide="filter" class="w-12 h-12 mx-auto mb-4 text-slate-600"></i>
+                <p class="text-slate-400">Sin resultados.</p>
+            </div>
+
+            <!-- Paginación -->
+            <div id="pagination-controls" class="mt-12 flex justify-center items-center gap-4">
+                <button onclick="changePage(-1)" id="prev-page" class="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                    Anterior
+                </button>
+                <span class="text-sm text-slate-400">
+                    Página <span id="current-page-display" class="text-white font-bold">1</span> de <span id="total-pages-display">1</span>
+                </span>
+                <button onclick="changePage(1)" id="next-page" class="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                    Siguiente
+                </button>
+            </div>
+        </div>
+
+        <!-- VISTA METADATA READER (INTEGRADA) -->
+        <div id="view-metadata" class="hidden fade-in-up pt-32">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-white mb-2">Lector de Metadatos AI</h2>
+                    <p class="text-slate-400">Descubre los prompts, seeds y configuraciones ocultas en tus imágenes PNG.</p>
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-8 h-[750px] lg:h-[600px]">
+                    
+                    <!-- Panel Izquierdo: Drop Zone & Preview -->
+                    <div class="w-full lg:w-1/2 flex flex-col gap-4">
+                        <input type="file" id="meta-file-input" accept=".png" multiple class="hidden">
+                        
+                        <!-- Drop Zone Estilizada -->
+                        <div id="meta-drop-zone" onclick="document.getElementById('meta-file-input').click()" 
+                             class="flex-1 bg-[#130b1f] border-2 border-dashed border-white/10 hover:border-fuchsia-500/50 rounded-2xl flex flex-col items-center justify-center p-6 transition-all cursor-pointer relative overflow-hidden group">
+                            
+                            <!-- Placeholder -->
+                            <div id="meta-drop-message" class="text-center pointer-events-none group-hover:scale-105 transition-transform">
+                                <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 text-fuchsia-500">
+                                    <i data-lucide="image-plus" class="w-8 h-8"></i>
+                                </div>
+                                <h3 class="text-lg font-bold text-white mb-1">Arrastra tu PNG aquí</h3>
+                                <p class="text-sm text-slate-500">o haz clic para explorar</p>
+                            </div>
+
+                            <!-- Preview Image -->
+                            <img id="meta-image-preview" class="max-w-full max-h-full object-contain absolute inset-0 m-auto p-4 hidden shadow-2xl" alt="Preview">
+                            
+                            <!-- Spinner -->
+                            <div id="meta-spinner" class="spinner border-4 border-white/10 border-l-fuchsia-500 rounded-full w-10 h-10 absolute hidden"></div>
+                        </div>
+
+                        <!-- Controles de Navegación de Archivos -->
+                        <div class="flex items-center gap-3 bg-[#130b1f] p-3 rounded-xl border border-white/5">
+                            <button onclick="metaNavigate(-1)" id="meta-prev-btn" disabled class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 transition-colors">
+                                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                            </button>
+                            <div class="flex-1 text-center font-mono text-xs text-slate-400">
+                                <span id="meta-file-counter">0 / 0</span>
+                                <span id="meta-file-name" class="block text-fuchsia-400 truncate max-w-[200px] mx-auto opacity-0 transition-opacity">nombre_archivo.png</span>
+                            </div>
+                            <button onclick="metaNavigate(1)" id="meta-next-btn" disabled class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 transition-colors">
+                                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Panel Derecho: Datos -->
+                    <div class="w-full lg:w-1/2 bg-[#130b1f] border border-white/5 rounded-2xl p-0 flex flex-col relative overflow-hidden">
+                        <!-- Toolbar -->
+                        <div class="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Datos Extraídos</span>
+                            <div class="flex gap-2">
+                                <button onclick="metaSaveTxt()" class="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors">
+                                    <i data-lucide="save" class="w-3.5 h-3.5"></i> .TXT
+                                </button>
+                                <button onclick="metaCopy()" class="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 transition-colors">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Display Area -->
+                        <div id="meta-display" class="flex-1 p-6 overflow-y-auto font-mono text-sm text-slate-300 selection:bg-fuchsia-500/30 selection:text-white space-y-4">
+                            <div class="flex flex-col items-center justify-center h-full text-slate-600">
+                                <i data-lucide="terminal" class="w-8 h-8 mb-2 opacity-50"></i>
+                                <p>Esperando imagen...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Bar -->
+                        <div id="meta-status" class="p-2 bg-black/40 text-[10px] text-center text-slate-500 font-mono">
+                            Listo para analizar
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA PEDIDOS -->
+        <div id="view-requests" class="hidden fade-in-up pt-24">
+            <div class="max-w-2xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-white mb-2">Realizar un Pedido</h2>
+                    <p class="text-slate-400">¿Tienes una idea específica? Solicita tu modelo personalizado aquí.</p>
+                </div>
+
+                <!-- Formulario Formspree -->
+                <form action="https://formspree.io/f/xwvvqkje" method="POST" class="space-y-6">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Concepto</label>
+                        <input name="concepto" required class="w-full bg-[#130b1f] border border-white/5 focus:border-fuchsia-500/50 rounded-xl p-4 text-white placeholder:text-slate-600 outline-none transition-all" type="text" placeholder="Ej. Cyberpunk Geisha en estilo acuarela" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Tipo</label>
+                            <select name="tipo" class="w-full bg-[#130b1f] border border-white/5 focus:border-fuchsia-500/50 rounded-xl p-4 text-white outline-none transition-all appearance-none cursor-pointer">
+                                <option>LoRA Character</option>
+                                <option>LoRA Style</option>
+                                <option>Checkpoint</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Discord User</label>
+                            <input name="discord_user" class="w-full bg-[#130b1f] border border-white/5 focus:border-fuchsia-500/50 rounded-xl p-4 text-white placeholder:text-slate-600 outline-none transition-all" type="text" placeholder="user#0000" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Detalles</label>
+                        <textarea name="detalles" class="w-full bg-[#130b1f] border border-white/5 focus:border-fuchsia-500/50 rounded-xl p-4 text-white placeholder:text-slate-600 outline-none transition-all h-32 resize-none" placeholder="Describe los detalles importantes: ropa, colores, pose, etc..."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                        Enviar Solicitud <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- VISTA SUPPORT / KO-FI -->
+        <div id="view-support" class="hidden fade-in-up pt-24">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-white mb-2">Apoya mi Arte</h2>
+                    <p class="text-slate-400">Accede a contenido exclusivo, comisiones prioritarias y modelos premium.</p>
+                </div>
+
+                <div class="bg-[#130b1f] border border-white/5 rounded-2xl p-4 shadow-2xl overflow-hidden relative">
+                     <!-- Decoración de fondo sutil -->
+                     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-fuchsia-500 to-transparent opacity-50"></div>
+                     
+                     <!-- Iframe Wrapper to ensure responsiveness -->
+                     <div class="w-full overflow-hidden rounded-xl bg-white"> 
+                        <iframe id='kofiframe' src='https://ko-fi.com/aiikohirayama/?hidefeed=true&widget=true&embed=true&preview=true' style='border:none;width:100%;padding:0;background:#f9f9f9;' height='712' title='aiikohirayama'></iframe>
+                     </div>
+                     
+                     <div class="mt-4 text-center">
+                        <p class="text-xs text-slate-500">Gestionado de forma segura a través de Ko-fi</p>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 py-12 bg-[#050208] mt-auto relative">
+        <div class="container mx-auto px-6 text-center">
+            <div class="flex items-center justify-center gap-2 mb-4 opacity-50 hover:opacity-100 transition-opacity">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-white">
+                    <path d="M12 2C12 2 13 6 12 7C14.5 6 17.5 6 18.5 8C19.5 10 15.5 12 14.5 12C16.5 13 18.5 16 17 17.5C15.5 19 12.5 15.5 12 14.5C11.5 16.5 8.5 19 7 17.5C5.5 16 7.5 13 9.5 12C8.5 12 4.5 10.5 5.5 8.5C6.5 6.5 9.5 6.5 11.5 7.5C11 6 11.5 2 12 2Z" />
+                </svg>
+               <span class="text-lg font-bold text-white">aiiko<span class="text-fuchsia-500">.</span></span>
+            </div>
+            <p class="text-sm text-slate-600 mb-4">&copy; 2024 Aiiko Art. Todos los derechos reservados.</p>
+            <button onclick="loginAdmin()" class="text-xs text-slate-800 hover:text-slate-600 transition-colors">Admin Login</button>
+        </div>
+    </footer>
+
+    <!-- Lógica JavaScript -->
+    <script>
+        const SAVED_DATA = null; 
+        
+        const ITEMS_PER_PAGE = 12;
+        let allModels = [];
+        let filteredModels = [];
+        let likedModels = new Set();
+        let isAdminMode = false;
+        
+        let currentPage = 1;
+        let currentFilter = 'All';
+        let currentSearch = '';
+
+        // --- GESTIÓN DE DATOS ---
+        function initializeData() {
+            if (SAVED_DATA && Array.isArray(SAVED_DATA) && SAVED_DATA.length > 0) {
+                allModels = SAVED_DATA;
+            } 
+            else if (localStorage.getItem('aiiko_draft_models')) {
+                allModels = JSON.parse(localStorage.getItem('aiiko_draft_models'));
+            }
+            else {
+                allModels = generateMockData();
+            }
+        }
+
+        // --- ADMIN SYSTEM ---
+        function loginAdmin() {
+            const pass = prompt("Introduce contraseña de admin:");
+            if (pass === "aiiko") {
+                enableAdminMode();
+                showNotification("Modo Admin Activado");
+            } else {
+                alert("Contraseña incorrecta");
+            }
+        }
+
+        function enableAdminMode() {
+            isAdminMode = true;
+            document.getElementById('admin-toolbar').classList.remove('hidden');
+            document.getElementById('navbar').classList.add('mt-16');
+            applyFilters(); 
+        }
+
+        function logoutAdmin() {
+            isAdminMode = false;
+            document.getElementById('admin-toolbar').classList.add('hidden');
+            document.getElementById('navbar').classList.remove('mt-16');
+            applyFilters();
+        }
+
+        // --- EDITOR VISUAL ---
+        function openEditor(id = null) {
+            const modal = document.getElementById('editor-modal');
+            const title = document.getElementById('modal-title');
+            
+            // Limpiar form
+            document.getElementById('edit-id').value = "";
+            document.getElementById('edit-title').value = "";
+            document.getElementById('edit-type').value = "LoRA";
+            document.getElementById('edit-tier').value = "FREE";
+            document.getElementById('edit-images').value = "";
+            document.getElementById('edit-tags').value = "";
+            document.getElementById('edit-desc').value = "";
+
+            if (id) {
+                // Modo Edición
+                const model = allModels.find(m => m.id === id);
+                if (model) {
+                    title.textContent = "Editar Modelo";
+                    document.getElementById('edit-id').value = model.id;
+                    document.getElementById('edit-title').value = model.title;
+                    document.getElementById('edit-type').value = model.type;
+                    document.getElementById('edit-tier').value = model.tier;
+                    // Join images array to string
+                    document.getElementById('edit-images').value = model.images ? model.images.join(', ') : model.image;
+                    document.getElementById('edit-tags').value = model.tags.join(', ');
+                    document.getElementById('edit-desc').value = model.description;
+                }
+            } else {
+                title.textContent = "Nuevo Modelo";
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeEditor() {
+            document.getElementById('editor-modal').classList.add('hidden');
+        }
+
+        function saveModel(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const title = document.getElementById('edit-title').value;
+            const type = document.getElementById('edit-type').value;
+            const tier = document.getElementById('edit-tier').value;
+            const imagesStr = document.getElementById('edit-images').value;
+            const tagsStr = document.getElementById('edit-tags').value;
+            const desc = document.getElementById('edit-desc').value;
+
+            const tags = tagsStr.split(',').map(t => t.trim()).filter(t => t);
+            const images = imagesStr.split(',').map(t => t.trim()).filter(t => t);
+
+            if (id) {
+                const index = allModels.findIndex(m => m.id == id);
+                if (index !== -1) {
+                    allModels[index] = { ...allModels[index], title, type, tier, images, tags, description: desc };
+                    // Fallback for legacy 'image' property if needed
+                    allModels[index].image = images[0]; 
+                }
+            } else {
+                const newId = Date.now(); 
+                allModels.unshift({ 
+                    id: newId,
+                    title, type, tier, images, image: images[0], tags, description: desc
+                });
+            }
+
+            localStorage.setItem('aiiko_draft_models', JSON.stringify(allModels));
+            closeEditor();
+            applyFilters();
+            showNotification("Cambios guardados localmente");
+        }
+
+        function deleteModel(id) {
+            if (confirm("¿Seguro que quieres borrar este modelo?")) {
+                allModels = allModels.filter(m => m.id !== id);
+                localStorage.setItem('aiiko_draft_models', JSON.stringify(allModels));
+                applyFilters();
+                showNotification("Modelo eliminado");
+            }
+        }
+
+        function downloadUpdatedWeb() {
+            let htmlContent = document.documentElement.outerHTML;
+            const dataString = JSON.stringify(allModels);
+            const injection = `const SAVED_DATA = ${dataString};`;
+            htmlContent = htmlContent.replace(/const SAVED_DATA = null;/, injection);
+            htmlContent = htmlContent.replace(/const SAVED_DATA = \[.*\];/s, injection);
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html'; 
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification("⬇️ Web descargada. ¡Reemplaza el archivo en tu GitHub!");
+        }
+
+        // --- GESTIÓN DE LIKES ---
+        function loadLikes() {
+            const saved = localStorage.getItem('aiiko_likes');
+            if (saved) likedModels = new Set(JSON.parse(saved));
+        }
+
+        function toggleLike(id, btnElement) {
+            if (event) event.stopPropagation();
+            const heartIcon = btnElement.querySelector('svg');
+
+            if (likedModels.has(id)) {
+                likedModels.delete(id);
+                heartIcon.classList.remove('fill-pink-500', 'text-pink-500', 'like-anim');
+                heartIcon.classList.add('text-slate-600');
+            } else {
+                likedModels.add(id);
+                heartIcon.classList.remove('text-slate-600');
+                heartIcon.classList.add('fill-pink-500', 'text-pink-500', 'like-anim');
+                showNotification('¡Añadido a favoritos!');
+            }
+            localStorage.setItem('aiiko_likes', JSON.stringify([...likedModels]));
+            
+            // Actualizar botón en el modal si está abierto
+            const modalLikeBtn = document.getElementById('detail-like-btn');
+            if (!document.getElementById('details-modal').classList.contains('hidden')) {
+               // El update visual del modal se maneja al abrirlo, 
+               // pero si damos like desde dentro del modal:
+               // (Esta lógica se añade en openModelDetails)
+            }
+
+            if (currentFilter === 'Favorites') applyFilters();
+        }
+
+        // --- DETALLES / MODAL ---
+        function openModelDetails(id) {
+            const model = allModels.find(m => m.id === id);
+            if (!model) return;
+
+            const modal = document.getElementById('details-modal');
+            
+            // Populate Data
+            document.getElementById('detail-title').textContent = model.title;
+            document.getElementById('detail-desc').textContent = model.description;
+            
+            // Main Image
+            const mainImg = document.getElementById('detail-main-image');
+            const images = model.images || [model.image];
+            mainImg.src = images[0];
+
+            // Thumbnails
+            const thumbContainer = document.getElementById('detail-thumbnails');
+            thumbContainer.innerHTML = '';
+            images.forEach(img => {
+                const thumb = document.createElement('img');
+                thumb.src = img;
+                thumb.className = "h-16 w-16 object-cover rounded-lg border-2 border-transparent hover:border-fuchsia-500 cursor-pointer transition-all snap-start flex-shrink-0";
+                thumb.onclick = () => { mainImg.src = img; };
+                thumbContainer.appendChild(thumb);
+            });
+
+            // Badges
+            const badgeContainer = document.getElementById('detail-badges');
+            const tierBadge = model.tier === 'PAID' 
+                ? `<span class="bg-amber-500/20 text-amber-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> PAID</span>`
+                : `<span class="bg-emerald-500/20 text-emerald-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1"><i data-lucide="unlock" class="w-3 h-3"></i> FREE</span>`;
+            badgeContainer.innerHTML = `${tierBadge} <span class="bg-white/10 text-slate-300 text-xs font-bold px-3 py-1 rounded-full border border-white/5">${model.type}</span>`;
+
+            // Tags
+            const tagsContainer = document.getElementById('detail-tags');
+            tagsContainer.innerHTML = model.tags.map(tag => `<span class="text-xs text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/5">#${tag}</span>`).join('');
+
+            // Like Button State in Modal
+            const likeBtn = document.getElementById('detail-like-btn');
+            const heartIcon = likeBtn.querySelector('svg');
+            
+            // Reset state
+            heartIcon.classList.remove('fill-pink-500', 'text-pink-500');
+            likeBtn.classList.remove('border-pink-500/50', 'text-pink-400', 'bg-pink-500/20');
+            likeBtn.classList.add('bg-white/5', 'text-white', 'border-white/10');
+            
+            if (likedModels.has(model.id)) {
+                heartIcon.classList.add('fill-pink-500', 'text-pink-500');
+                likeBtn.classList.add('border-pink-500/50', 'text-pink-400', 'bg-pink-500/20');
+                likeBtn.classList.remove('bg-white/5', 'text-white', 'border-white/10');
+            }
+
+            // Assign click handler to modal like button
+            likeBtn.onclick = () => {
+                toggleLike(model.id, likeBtn);
+                // Force update icon visually in modal immediately
+                if (likedModels.has(model.id)) {
+                     heartIcon.classList.add('fill-pink-500', 'text-pink-500');
+                     likeBtn.classList.add('border-pink-500/50', 'text-pink-400', 'bg-pink-500/20');
+                     likeBtn.classList.remove('bg-white/5', 'text-white', 'border-white/10');
+                } else {
+                     heartIcon.classList.remove('fill-pink-500', 'text-pink-500');
+                     likeBtn.classList.remove('border-pink-500/50', 'text-pink-400', 'bg-pink-500/20');
+                     likeBtn.classList.add('bg-white/5', 'text-white', 'border-white/10');
+                }
+                // Refresh grid to reflect changes
+                renderPage(currentPage);
+            };
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('details-modal').classList.add('hidden');
+        }
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLikes();
+            initializeData();
+            applyFilters();
+            
+            window.addEventListener('scroll', () => {
+                const nav = document.getElementById('navbar');
+                if (window.scrollY > 20) nav.classList.add('bg-[#0A0510]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
+                else nav.classList.remove('bg-[#0A0510]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
+            });
+            
+            lucide.createIcons();
+            
+            // Eventos del Lector de Metadatos
+            setupMetadataEvents();
+        });
+
+        // --- FILTROS ---
+        function handleSearch(val) {
+            currentSearch = val.toLowerCase();
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function filterModels(type) {
+            currentFilter = type;
+            currentPage = 1;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                const indicator = btn.querySelector('.indicator');
+                if (btn.dataset.type === type) {
+                    btn.classList.remove('text-slate-500');
+                    btn.classList.add('text-white');
+                    indicator.classList.remove('hidden');
+                } else {
+                    btn.classList.add('text-slate-500');
+                    btn.classList.remove('text-white');
+                    indicator.classList.add('hidden');
+                }
+            });
+            applyFilters();
+        }
+
+        function applyFilters() {
+            filteredModels = allModels.filter(m => {
+                let matchType = true;
+                if (currentFilter === 'Favorites') matchType = likedModels.has(m.id);
+                else if (currentFilter !== 'All') matchType = m.type === currentFilter;
+
+                const matchSearch = m.title.toLowerCase().includes(currentSearch) || 
+                                    m.tags.some(t => t.toLowerCase().includes(currentSearch));
+                return matchType && matchSearch;
+            });
+            renderPage(currentPage);
+        }
+
+        // --- RENDERIZADO ---
+        function changePage(direction) {
+            const totalPages = Math.ceil(filteredModels.length / ITEMS_PER_PAGE);
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderPage(currentPage);
+                document.getElementById('view-gallery').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function renderPage(page) {
+            const grid = document.getElementById('models-grid');
+            grid.innerHTML = '';
+            
+            const paginationControls = document.getElementById('pagination-controls');
+            const noResults = document.getElementById('no-results');
+
+            if (filteredModels.length === 0) {
+                noResults.classList.remove('hidden');
+                paginationControls.classList.add('hidden');
+                return;
+            }
+            noResults.classList.add('hidden');
+            paginationControls.classList.remove('hidden');
+
+            const start = (page - 1) * ITEMS_PER_PAGE;
+            const end = start + ITEMS_PER_PAGE;
+            const pageItems = filteredModels.slice(start, end);
+
+            pageItems.forEach(model => {
+                grid.appendChild(createModelCard(model));
+            });
+
+            const totalPages = Math.ceil(filteredModels.length / ITEMS_PER_PAGE) || 1;
+            document.getElementById('current-page-display').textContent = page;
+            document.getElementById('total-pages-display').textContent = totalPages;
+            document.getElementById('prev-page').disabled = page === 1;
+            document.getElementById('next-page').disabled = page === totalPages;
+            
+            lucide.createIcons();
+        }
+
+        function createModelCard(model) {
+            const card = document.createElement('div');
+            card.className = "group bg-[#130b1f] rounded-2xl p-4 border border-white/5 hover:border-purple-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-900/10 hover:-translate-y-1 fade-in-up flex flex-col h-full relative";
+            
+            // Normalize images
+            const images = model.images || [model.image];
+            const hasMultiple = images.length > 1;
+
+            // Tier Badge
+            let tierBadge = model.tier === 'PAID' 
+                ? `<span class="bg-amber-500/10 backdrop-blur-md border border-amber-500/20 text-amber-200 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> PAID</span>`
+                : `<span class="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 text-emerald-200 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1"><i data-lucide="unlock" class="w-3 h-3"></i> FREE</span>`;
+
+            // Like status
+            const isLiked = likedModels.has(model.id);
+            const heartClass = isLiked ? "fill-pink-500 text-pink-500" : "text-slate-600";
+
+            // Admin Overlay
+            const adminOverlay = isAdminMode ? `
+                <div class="absolute top-2 right-2 z-30 flex gap-2">
+                    <button onclick="event.stopPropagation(); openEditor(${model.id})" class="p-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-500" title="Editar"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                    <button onclick="event.stopPropagation(); deleteModel(${model.id})" class="p-2 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-500" title="Borrar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            ` : '';
+
+            // Image Carousel (Simple Scroll)
+            const imgHTML = images.map(img => 
+                `<img src="${img}" loading="lazy" class="w-full h-full object-cover flex-shrink-0 snap-center" alt="${model.title}">`
+            ).join('');
+
+            // Dots indicator (simple version: show if multiple)
+            const dots = hasMultiple ? `
+                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-20">
+                    <div class="w-1.5 h-1.5 rounded-full bg-white/80"></div>
+                    <div class="w-1.5 h-1.5 rounded-full bg-white/40"></div>
+                </div>
+            ` : '';
+
+            card.onclick = () => openModelDetails(model.id); // Open Modal on Click
+
+            card.innerHTML = `
+                ${adminOverlay}
+                <div class="relative aspect-[3/4] overflow-hidden rounded-xl bg-slate-900 mb-4 cursor-pointer group/image">
+                    
+                    <!-- Scrollable Container -->
+                    <div class="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
+                        ${imgHTML}
+                    </div>
+
+                    <!-- Overlay Botones (Interactivos) -->
+                    <div class="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover/image:opacity-100 transition-opacity z-20 pointer-events-none">
+                         <div class="pointer-events-auto flex gap-3">
+                            <button onclick="event.stopPropagation(); showNotification('Descargando...')" class="p-3 rounded-full bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-fuchsia-600 hover:border-fuchsia-600 transition-colors transform hover:scale-110"><i data-lucide="download" class="w-5 h-5"></i></button>
+                            <button onclick="event.stopPropagation(); showNotification('Enlace copiado')" class="p-3 rounded-full bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-purple-600 hover:border-purple-600 transition-colors transform hover:scale-110"><i data-lucide="share-2" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Badges -->
+                    <div class="absolute top-3 left-3 flex gap-2 z-20 pointer-events-none">
+                        ${tierBadge}
+                        <span class="bg-black/40 backdrop-blur-md border border-white/10 text-slate-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">${model.type}</span>
+                    </div>
+
+                    ${dots}
+                </div>
+                
+                <div class="flex-grow flex flex-col">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-bold text-white group-hover:text-fuchsia-400 transition-colors line-clamp-1">${model.title}</h3>
+                        <button onclick="toggleLike(${model.id}, this)" class="transition-all transform active:scale-95 hover:text-pink-400 p-1"><i data-lucide="heart" class="w-5 h-5 ${heartClass}"></i></button>
+                    </div>
+                    <p class="text-sm text-slate-400 line-clamp-2 mb-4 font-light">${model.description}</p>
+                    <div class="flex flex-wrap gap-2 mt-auto">
+                        ${model.tags.slice(0, 3).map(tag => `<span class="text-[10px] uppercase tracking-wider text-slate-500 border border-slate-800 px-2 py-1 rounded hover:bg-white/5 transition-colors cursor-default">#${tag}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // --- DATA MOCK (Genera Multiples Imagenes) ---
+        function generateMockData() {
+            const adjectives = ["Neon", "Dark", "Sweet", "Cyber", "Mystic"];
+            const nouns = ["Girl", "Mecha", "Warrior", "Angel", "Demon"];
+            const models = [];
+            for (let i = 1; i <= 20; i++) {
+                const imgBase = `https://placehold.co/600x800`;
+                const color = Math.floor(Math.random()*16777215).toString(16);
+                const images = [
+                    `${imgBase}/${color}/ffffff?text=Cover+${i}`,
+                    `${imgBase}/${color}/ffffff?text=Detail+A`,
+                    `${imgBase}/${color}/ffffff?text=Detail+B`
+                ];
+
+                models.push({
+                    id: i,
+                    title: `Modelo Ejemplo ${i}`,
+                    type: Math.random() > 0.5 ? "LoRA" : "Checkpoint",
+                    tier: Math.random() > 0.7 ? "PAID" : "FREE",
+                    images: images,
+                    image: images[0], // Compatibilidad
+                    description: "Esta es una descripción larga que ahora se podrá leer completa en el modal. Incluye detalles técnicos, prompt words y configuraciones recomendadas para Stable Diffusion.",
+                    tags: ["Anime", "Test"]
+                });
+            }
+            return models;
+        }
+
+        // --- UI UTILS & NAVIGATION ---
+        function switchTab(tab) {
+            const views = {
+                'gallery': document.getElementById('view-gallery'),
+                'requests': document.getElementById('view-requests'),
+                'metadata': document.getElementById('view-metadata'),
+                'support': document.getElementById('view-support')
+            };
+            const btns = {
+                'gallery': document.getElementById('btn-gallery'),
+                'requests': document.getElementById('btn-requests'),
+                'metadata': document.getElementById('btn-metadata'),
+                'support': document.getElementById('btn-support')
+            };
+            const hero = document.getElementById('hero-section');
+
+            // Reset all
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            Object.values(btns).forEach(el => {
+                el.classList.remove('text-white');
+                el.classList.add('text-slate-400');
+            });
+
+            // Activate target
+            views[tab].classList.remove('hidden');
+            btns[tab].classList.add('text-white');
+            btns[tab].classList.remove('text-slate-400');
+
+            // Hero visibility (Solo en galeria)
+            if (tab === 'gallery') {
+                hero.style.display = 'block';
+                setTimeout(() => hero.classList.remove('opacity-0', '-translate-y-10'), 50);
+            } else {
+                hero.classList.add('opacity-0', '-translate-y-10');
+                setTimeout(() => hero.style.display = 'none', 500);
+            }
+        }
+
+        function showNotification(msg) {
+            const notif = document.getElementById('notification');
+            document.getElementById('notification-text').textContent = msg;
+            notif.classList.remove('translate-y-10', 'opacity-0');
+            setTimeout(() => notif.classList.add('translate-y-10', 'opacity-0'), 3000);
+        }
+
+        // ==========================================
+        //  LOGICA DEL LECTOR DE METADATOS (INTEGRADA)
+        // ==========================================
+        
+        let metaFileQueue = [];
+        let metaCurrentIndex = -1;
+
+        function setupMetadataEvents() {
+            const input = document.getElementById('meta-file-input');
+            const dropZone = document.getElementById('meta-drop-zone');
+
+            input.addEventListener('change', (e) => metaHandleFiles(e.target.files));
+            
+            dropZone.addEventListener('dragover', (e) => { 
+                e.preventDefault(); 
+                dropZone.classList.add('meta-drop-active'); 
+            });
+            dropZone.addEventListener('dragleave', (e) => { 
+                e.preventDefault(); 
+                dropZone.classList.remove('meta-drop-active'); 
+            });
+            dropZone.addEventListener('drop', (e) => { 
+                e.preventDefault(); 
+                dropZone.classList.remove('meta-drop-active'); 
+                metaHandleFiles(e.dataTransfer.files); 
+            });
+        }
+
+        function metaHandleFiles(files) {
+            const pngs = Array.from(files).filter(f => f.type === 'image/png' || f.name.toLowerCase().endsWith('.png'));
+            if (pngs.length === 0) { showNotification("Solo archivos PNG admitidos"); return; }
+            
+            metaFileQueue = pngs;
+            metaCurrentIndex = 0;
+            metaUpdateNav();
+            metaLoadFile(metaFileQueue[0]);
+        }
+
+        function metaUpdateNav() {
+            document.getElementById('meta-file-counter').textContent = `${metaCurrentIndex + 1} / ${metaFileQueue.length}`;
+            document.getElementById('meta-prev-btn').disabled = metaCurrentIndex <= 0;
+            document.getElementById('meta-next-btn').disabled = metaCurrentIndex >= metaFileQueue.length - 1;
+        }
+
+        function metaNavigate(dir) {
+            const newIndex = metaCurrentIndex + dir;
+            if (newIndex >= 0 && newIndex < metaFileQueue.length) {
+                metaCurrentIndex = newIndex;
+                metaLoadFile(metaFileQueue[metaCurrentIndex]);
+                metaUpdateNav();
+            }
+        }
+
+        function metaLoadFile(file) {
+            if (!file) return;
+            
+            // UI Reset
+            document.getElementById('meta-drop-message').classList.add('hidden');
+            document.getElementById('meta-spinner').classList.remove('hidden');
+            document.getElementById('meta-image-preview').classList.add('hidden');
+            document.getElementById('meta-display').innerHTML = '<div class="flex h-full items-center justify-center text-fuchsia-400"><p class="animate-pulse">Analizando estructura binaria...</p></div>';
+            document.getElementById('meta-file-name').textContent = file.name;
+            document.getElementById('meta-file-name').classList.remove('opacity-0');
+            document.getElementById('meta-status').textContent = "Leyendo archivo...";
+
+            // 1. Cargar Imagen Visual
+            const readerURL = new FileReader();
+            readerURL.onload = (e) => {
+                const img = document.getElementById('meta-image-preview');
+                img.src = e.target.result;
+                img.onload = () => {
+                    document.getElementById('meta-spinner').classList.add('hidden');
+                    img.classList.remove('hidden');
+                };
+            };
+            readerURL.readAsDataURL(file);
+
+            // 2. Leer Metadatos
+            const readerArray = new FileReader();
+            readerArray.onload = (e) => {
+                try {
+                    const result = metaExtractFromPng(e.target.result);
+                    if (result.html) {
+                        document.getElementById('meta-display').innerHTML = result.html;
+                        document.getElementById('meta-status').textContent = "✅ Metadatos encontrados";
+                    } else if (result.raw) {
+                         document.getElementById('meta-display').innerHTML = `<div class="text-orange-300 mb-2 font-bold">⚠️ Datos sin formato JSON:</div><div class="whitespace-pre-wrap break-all text-xs">${escapeHtml(result.raw)}</div>`;
+                         document.getElementById('meta-status').textContent = "⚠️ Texto plano encontrado";
+                    } else {
+                        document.getElementById('meta-display').innerHTML = '<div class="flex h-full items-center justify-center text-slate-500 text-center"><p>No se encontraron metadatos<br>compatibles en este PNG.</p></div>';
+                        document.getElementById('meta-status').textContent = "❌ Sin datos";
+                    }
+                    lucide.createIcons(); // Re-render icons in links
+                } catch (err) {
+                    console.error(err);
+                    document.getElementById('meta-display').textContent = "Error: " + err.message;
+                }
+            };
+            readerArray.readAsArrayBuffer(file);
+        }
+
+        // --- CORE PARSER LOGIC (Port from previous version) ---
+        function metaExtractFromPng(buffer) {
+            const view = new DataView(buffer);
+            const u8 = new Uint8Array(buffer);
+            if (u8[0]!==0x89 || u8[1]!==0x50 || u8[2]!==0x4E || u8[3]!==0x47) return {html: null};
+
+            let offset = 8;
+            const textChunks = [];
+            
+            while (offset < buffer.byteLength) {
+                if (offset + 8 > buffer.byteLength) break;
+                const length = view.getUint32(offset);
+                const typeArr = u8.slice(offset + 4, offset + 8);
+                const type = String.fromCharCode(...typeArr);
+                
+                try {
+                    if (type === 'tEXt') {
+                        const data = u8.slice(offset + 8, offset + 8 + length);
+                        const nullIdx = data.indexOf(0);
+                        if (nullIdx > -1) {
+                            const valBytes = data.slice(nullIdx + 1);
+                            let val = "";
+                            try { val = new TextDecoder('utf-8', {fatal: true}).decode(valBytes); }
+                            catch { val = new TextDecoder('iso-8859-1').decode(valBytes); }
+                            textChunks.push(val);
+                        }
+                    } 
+                    else if (type === 'zTXt') {
+                        const data = u8.slice(offset + 8, offset + 8 + length);
+                        const nullIdx = data.indexOf(0);
+                        if (nullIdx > -1 && typeof pako !== 'undefined') {
+                            const compressed = data.slice(nullIdx + 2);
+                            try {
+                                const inflated = pako.inflate(compressed);
+                                textChunks.push(new TextDecoder('utf-8').decode(inflated));
+                            } catch (e) {}
+                        }
+                    }
+                    else if (type === 'iTXt') {
+                        const data = u8.slice(offset + 8, offset + 8 + length);
+                        let ptr = 0; while (ptr < data.length && data[ptr] !== 0) ptr++; 
+                        if (ptr < data.length) {
+                            ptr++; 
+                            const compFlag = data[ptr];
+                            ptr += 2; 
+                            while (ptr < data.length && data[ptr] !== 0) ptr++; ptr++; 
+                            while (ptr < data.length && data[ptr] !== 0) ptr++; ptr++; 
+                            const raw = data.slice(ptr);
+                            if (compFlag === 1 && typeof pako !== 'undefined') {
+                                try { textChunks.push(new TextDecoder('utf-8').decode(pako.inflate(raw))); } catch(e){}
+                            } else {
+                                try { textChunks.push(new TextDecoder('utf-8').decode(raw)); } catch(e){}
+                            }
+                        }
+                    }
+                } catch(e) {}
+                offset += 12 + length;
+            }
+
+            let combinedJSON = {};
+            let hasJSON = false;
+            let rawTextAccumulator = "";
+
+            textChunks.forEach(txt => {
+                rawTextAccumulator += txt + "\n";
+                const start = txt.indexOf('{');
+                const end = txt.lastIndexOf('}');
+                if (start !== -1 && end !== -1) {
+                    try {
+                        const obj = JSON.parse(txt.substring(start, end + 1));
+                        combinedJSON = { ...combinedJSON, ...obj };
+                        hasJSON = true;
+                    } catch (e) {}
+                }
+            });
+
+            if (hasJSON) return { html: metaFormatHTML(combinedJSON), json: combinedJSON };
+            else if (rawTextAccumulator.trim().length > 0) return { html: null, raw: rawTextAccumulator };
+            return { html: null };
+        }
+
+        // --- NEW FIND ALL SEEDS FUNCTION (Exact Python Replica) ---
+        function metaFindAllSeeds(obj) {
+            let seeds = new Set();
+            function search(o) {
+                if (!o) return;
+                if (typeof o === 'object') {
+                    if (Array.isArray(o)) {
+                        o.forEach(search);
+                    } else {
+                        for (let k in o) {
+                            if (k === 'seed' || k === 'noise_seed' || k === 'seed_int') {
+                                const val = parseInt(o[k]);
+                                // Python logic: only > 0
+                                if (!isNaN(val) && val > 0) seeds.add(val);
+                            }
+                            search(o[k]);
+                        }
+                    }
+                }
+            }
+            search(obj);
+            return Array.from(seeds).sort((a,b) => a-b);
+        }
+
+        function metaFormatHTML(data) {
+            let html = "";
+            const escapeHtml = (text) => {
+                if (!text) return text;
+                return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            };
+            
+            // Helpers
+            const findDeep = (keyword) => {
+                let res = null;
+                const search = (obj) => {
+                    if(res) return;
+                    if(typeof obj === 'object' && obj){
+                        for(let k in obj){
+                            if(String(k).toLowerCase().includes(keyword) || String(obj[k]).toLowerCase().includes(keyword)) {
+                                if(typeof obj[k] === 'string' || typeof obj[k] === 'number') res = obj[k];
+                            }
+                            search(obj[k]);
+                        }
+                    } else if(Array.isArray(obj)) obj.forEach(search);
+                };
+                search(data);
+                return res;
+            };
+
+            const addBlock = (label, val) => {
+                 html += `<div class="mb-4"><div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">${escapeHtml(label)}</div><div class="bg-black/30 p-3 rounded-lg text-slate-300 text-xs border border-white/5 whitespace-pre-wrap">${escapeHtml(String(val))}</div></div>`;
+            };
+            const addLine = (label, val) => {
+                html += `<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-slate-500 font-bold text-xs uppercase">${escapeHtml(label)}</span> <span class="text-fuchsia-300 text-xs font-mono">${escapeHtml(String(val))}</span></div>`;
+            };
+
+            // Contenido
+            const prompt = data.prompt || data.positive || '[No encontrado]';
+            addBlock("Prompt", prompt);
+            
+            const neg = data.negativePrompt || data.negative || '[No encontrado]';
+            addBlock("Negative Prompt", neg);
+
+            // Tech Specs Grid
+            html += `<div class="grid grid-cols-2 gap-4 mb-4">`;
+            const width = data.width || '?';
+            const height = data.height || '?';
+            html += `<div class="bg-black/20 p-2 rounded border border-white/5 text-center"><div class="text-[10px] text-slate-500 uppercase">Res</div><div class="text-white font-mono">${width}x${height}</div></div>`;
+            html += `<div class="bg-black/20 p-2 rounded border border-white/5 text-center"><div class="text-[10px] text-slate-500 uppercase">Steps</div><div class="text-white font-mono">${data.steps || '?'}</div></div>`;
+            html += `<div class="bg-black/20 p-2 rounded border border-white/5 text-center"><div class="text-[10px] text-slate-500 uppercase">CFG</div><div class="text-white font-mono">${data.cfgScale || '?'}</div></div>`;
+            
+            // USE NEW SEED LOGIC
+            const allSeeds = metaFindAllSeeds(data);
+            const seedDisplay = allSeeds.length > 0 ? allSeeds.join(', ') : (data.seed || '[?]').toString();
+            
+            html += `<div class="bg-black/20 p-2 rounded border border-white/5 text-center"><div class="text-[10px] text-slate-500 uppercase">Seed(s)</div><div class="text-white font-mono text-xs truncate" title="${seedDisplay}">${seedDisplay}</div></div>`;
+            html += `</div>`;
+
+            html += `<div class="space-y-1 bg-black/20 p-4 rounded-xl border border-white/5">`;
+            addLine("Sampler", data.ksamplerName || data.sampler || data.sampler_name || findDeep('sampler') || '?');
+            addLine("Scheduler", data.scheduler || data.scheduler_name || findDeep('scheduler') || '?');
+            addLine("Base Model", (data.baseModel && data.baseModel.modelFileName) || findDeep('model') || 'Unknown');
+            
+            // EXTRA PARAMS
+            if (data.clipSkip) addLine("Clip Skip", data.clipSkip);
+            const vae = data.vae_name || data.vae || findDeep('vae_name');
+            if (vae) addLine("VAE", vae);
+            if (data.denoising_strength || data.denoise) addLine("Denoise", data.denoising_strength || data.denoise);
+            if (data.hires_upscale || data.upscale_method) addLine("Hires Upscale", `${data.upscale_method || ''} (${data.hires_upscale || '?'}x)`);
+
+            html += `</div>`;
+
+            // LoRAs
+            const loras = new Set();
+            const searchLoras = (obj) => {
+                if(typeof obj === 'object' && obj){
+                    for(let k in obj){
+                        if((k.toLowerCase().includes("lora") || String(obj[k]).toLowerCase().includes("lora")) && typeof obj[k] === 'string') loras.add(obj[k]);
+                    }
+                    Object.values(obj).forEach(searchLoras);
+                } else if(Array.isArray(obj)) obj.forEach(searchLoras);
+            };
+            searchLoras(data);
+            
+            if (loras.size > 0) {
+                html += `<div class="mt-4"><div class="text-xs font-bold text-fuchsia-400 uppercase tracking-widest mb-2">LoRAs Detectados</div><div class="flex flex-wrap gap-2">`;
+                loras.forEach(l => html += `<span class="px-2 py-1 bg-fuchsia-900/20 border border-fuchsia-500/30 text-fuchsia-200 text-[10px] rounded">${escapeHtml(l)}</span>`);
+                html += `</div></div>`;
+            }
+
+            // Model IDs Links
+            const ids = new Set();
+            const searchIds = (obj) => {
+                if(typeof obj === 'object' && obj){
+                    if(obj.modelId) ids.add(String(obj.modelId));
+                    Object.values(obj).forEach(searchIds);
+                } else if(Array.isArray(obj)) obj.forEach(searchIds);
+            }
+            searchIds(data);
+
+            if (ids.size > 0) {
+                html += `<div class="mt-6 pt-4 border-t border-white/10">
+                            <div class="text-slate-400 text-xs font-bold mb-2 flex items-center gap-2"><i data-lucide="link" class="w-3 h-3"></i> ENLACES (TENSOR.ART)</div>
+                            <div class="flex flex-col gap-1">`;
+                ids.forEach(id => {
+                    html += `<a href="https://tensor.art/models/${id}" target="_blank" class="model-link flex items-center gap-2 w-fit text-xs font-mono">
+                                <span>🔗 ID: ${escapeHtml(id)}</span> <i data-lucide="external-link" class="w-3 h-3"></i>
+                             </a>`;
+                });
+                html += `</div></div>`;
+            }
+
+            return html;
+        }
+
+        // --- EXPORT TOOLS ---
+        function metaCopy() {
+            const el = document.getElementById('meta-display');
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('copy');
+            sel.removeAllRanges();
+            showNotification("Texto copiado al portapapeles");
+        }
+
+        function metaSaveTxt() {
+            const txt = document.getElementById('meta-display').innerText;
+            if (!txt || txt.includes("Esperando")) return;
+            const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `metadata_${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Helper for raw text
+        function escapeHtml(text) {
+            if (!text) return text;
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+    </script>
+</body>
+</html>

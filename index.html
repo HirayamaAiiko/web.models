@@ -87,6 +87,7 @@
                 <button onclick="openEditor()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"><i data-lucide="plus" class="w-4 h-4"></i> Nuevo</button>
                 <button onclick="saveMasterCopy()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors border border-white/10"><i data-lucide="hard-drive" class="w-4 h-4"></i> Guardar Copia Maestra</button>
                 <button onclick="exportPublicSite()" class="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(217,70,239,0.3)]"><i data-lucide="globe" class="w-4 h-4"></i> Exportar Web Pública</button>
+                <button onclick="forceReload()" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Borrar Caché y Recargar</button>
                 <button onclick="logoutAdmin()" class="px-4 py-2 bg-red-900/50 hover:bg-red-900 rounded-lg text-sm font-bold transition-colors">Salir</button>
             </div>
         </div>
@@ -162,7 +163,7 @@
         </div>
     </div>
 
-    <!-- MODAL DETALLES -->
+    <!-- MODAL DETALLES (Vista Publica) -->
     <div id="details-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center p-0 md:p-4">
         <div class="absolute inset-0 bg-black/95 backdrop-blur-md" onclick="closeDetailsModal()"></div>
         <div class="relative bg-[#0F0A15] border border-white/10 md:rounded-3xl w-full max-w-6xl h-full md:h-[85vh] shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -534,6 +535,18 @@
             applyFilters();
         }
 
+        function forceReload() {
+            if ('caches' in window) {
+                caches.keys().then((names) => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+            window.location.reload(true);
+            window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
+        }
+
         function exportPublicSite() {
             const clone = document.documentElement.cloneNode(true);
             const notif = clone.querySelector('#notification');
@@ -547,7 +560,6 @@
             const injection = `const SAVED_DATA = ${dataString};`;
             htmlContent = htmlContent.replace(/const SAVED_DATA = (null|\[.*\]);/, injection);
             
-            // CLEANUP: Ensure DOCTYPE is added (outerHTML misses it)
             const finalHtml = "<!DOCTYPE html>\n" + htmlContent;
             
             const blob = new Blob([finalHtml], { type: 'text/html' });
@@ -572,7 +584,6 @@
             const injection = `const SAVED_DATA = ${dataString};`;
             htmlContent = htmlContent.replace(/const SAVED_DATA = (null|\[.*\]);/, injection);
             
-            // CLEANUP: Ensure DOCTYPE is added
             const finalHtml = "<!DOCTYPE html>\n" + htmlContent;
 
             const blob = new Blob([finalHtml], { type: 'text/html' });
@@ -890,7 +901,7 @@
                     tier: lowerStr.includes("free") ? "FREE" : (Math.random() > 0.85 ? "PAID" : "FREE"),
                     images: images,
                     image: images[0],
-                    description: `Modelo: ${title}\nArquitectura: ${type} (${format})\n${version ? 'Versión: ' + version : ''}\n\nEste modelo ha sido optimizado para generar ilustraciones de alta calidad con el estilo característico de Aiiko.`,
+                    description: "", // Descripción vacía por defecto
                     tags: tags
                 };
             });
